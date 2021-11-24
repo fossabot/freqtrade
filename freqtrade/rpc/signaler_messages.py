@@ -6,7 +6,7 @@ from pyrogram.types import ReplyKeyboardMarkup, Message
 
 logger = logging.getLogger(__name__)
 
-SIGNALER_VERSION = "0.0.1"
+SIGNALER_VERSION = "0.0.2"
 MENTION = "[{}](tg://user?id={})"  # User mention markup
 STARTED_MESSAGE = "{} Welcome to [Freqtrade's Signaler](https://freqtrade.io/en/stable) {}! \n" \
                   " Successfully connected with {}. \n" \

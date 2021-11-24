@@ -3,6 +3,8 @@ Run a pyrogram bot that can call freqtrade sub-commands (and send buy/sell signa
 """
 import logging
 import signal
+from pathlib import Path
+import os
 from typing import Dict, Any
 
 from pyrogram import Client, __version__, emoji, filters, idle
@@ -49,7 +51,8 @@ class Signaler:
             parse_mode="markdown",
             sleep_threshold=60,
             workdir=self._config['user_data_dir'],
-            session_name="Freqsignaler_bot"
+            session_name="Freqsignaler_bot",
+            plugins=dict(root="freqtrade.rpc.signaler_plugins")
         )
         init_db(self._config, self._client)
 
@@ -77,12 +80,11 @@ class Signaler:
         welcome_user_handler = MessageHandler(self.start_handler, filters.command(["start"]))
         restart_handler = MessageHandler(self.restart_handler, filters.command(["restart"]))
         stop_handler = MessageHandler(self.stop_handler, filters.command(["stop"]))
-        test_handler = MessageHandler(self.test_handler, filters.command(["test"]))
+
         # Add the handlers to the client
         self._client.add_handler(welcome_user_handler)
         self._client.add_handler(restart_handler)
         self._client.add_handler(stop_handler)
-        self._client.add_handler(test_handler)
 
     def restart_handler(self, client: Client, message: Message):
         """
@@ -122,20 +124,6 @@ class Signaler:
                 me = self._client.get_me()
                 logger.info(f'rpc.signaler tried to send startup message to {owner.user_name}'
                             f'but was unsucessful. Make sure you interacted with {me.username} first!')
-
-    @staticmethod
-    async def test_handler(client: Client, message: Message):
-        """
-
-        :param client:
-        :param message:
-        :return:
-        """
-        logger.info("rpc.signaler received the test command.")
-        user_name = message.chat.first_name
-        text = f"Wow, {user_name}. Great moves. Keep it up. Proud of you. \n"
-        text = await SignalerUser.user_ownership_message(message, text)
-        await message.reply_text(text=text, reply_markup=SignalerUser.reply_menu_markup(message.chat.id))
 
     @staticmethod
     def stop_handler(client: Client, message: Message):
