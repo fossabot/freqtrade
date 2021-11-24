@@ -94,6 +94,8 @@ ARGS_HYPEROPT_SHOW = ["hyperopt_list_best", "hyperopt_list_profitable", "hyperop
                       "print_json", "hyperoptexportfilename", "hyperopt_show_no_header",
                       "disableparamexport", "backtest_breakdown"]
 
+ARGS_SIGNALER = ["signaler"]
+
 NO_CONF_REQURIED = ["convert-data", "convert-trade-data", "download-data", "list-timeframes",
                     "list-markets", "list-pairs", "list-strategies", "list-data",
                     "hyperopt-list", "hyperopt-show", "backtest-filter",
@@ -183,7 +185,7 @@ class Arguments:
                                         start_list_markets, start_list_strategies,
                                         start_list_timeframes, start_new_config, start_new_strategy,
                                         start_plot_dataframe, start_plot_profit, start_show_trades,
-                                        start_test_pairlist, start_trading, start_webserver)
+                                        start_test_pairlist, start_trading, start_webserver, start_signaler)
 
         subparsers = self.parser.add_subparsers(dest='command',
                                                 # Use custom message when no subhandler is added
@@ -400,3 +402,9 @@ class Arguments:
                                               parents=[_common_parser])
         webserver_cmd.set_defaults(func=start_webserver)
         self._build_args(optionlist=ARGS_WEBSERVER, parser=webserver_cmd)
+
+        # Add signaler subcommand
+        signaler_cmd = subparsers.add_parser('signaler', help='Signaler module.',
+                                             parents=[_common_parser, _strategy_parser])
+        signaler_cmd.set_defaults(func=start_signaler)
+        self._build_args(optionlist=ARGS_SIGNALER, parser=signaler_cmd)

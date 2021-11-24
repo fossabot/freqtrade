@@ -581,4 +581,9 @@ AVAILABLE_CLI_OPTIONS = {
               "that do not contain any parameters."),
         action="store_true",
     ),
+    "signaler": Arg(
+        "--signaler",
+        help="Turn freqtrade into a signaling bot!",
+        action="store_true",
+    )
 }
