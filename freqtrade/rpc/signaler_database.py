@@ -5,10 +5,10 @@ import logging
 from datetime import datetime
 from typing import Any, List, Dict
 
-from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer, String,
-                        create_engine, desc, func, inspect, select, MetaData)
+from sqlalchemy import (Boolean, Column, DateTime, Integer, String,
+                        create_engine)
 from sqlalchemy.exc import NoSuchModuleError, NoResultFound
-from sqlalchemy.orm import  declarative_base, relationship, scoped_session, sessionmaker
+from sqlalchemy.orm import  declarative_base, scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from freqtrade.exceptions import OperationalException
@@ -40,7 +40,12 @@ class SignalerUser(_DECL_BASE):
     is_owner = Column(Boolean, nullable=False, index=False)
     # last signal received
 
+    # there is 3 'states' of approval for a user.
+    # 1. Not allowed and Not denied (can ask to be allowed, first interaction)
+    # 2. Allowed (therefore not denied)
+    # 3. Denied (therefore not approved, can no longer ask to be allowed)
     is_allowed = Column(Boolean, nullable=False, index=True)
+    has_demanded = Column(Boolean, nullable=False, index=True, default=False)
     join_date = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     def delete(self) -> None:
@@ -55,6 +60,13 @@ class SignalerUser(_DECL_BASE):
         Allow this user
         """
         self.is_allowed = True
+        SignalerUser.query.session.commit()
+
+    def deny_user(self) -> None:
+        """
+        Deny this user
+        """
+        self.is_allowed = False
         SignalerUser.query.session.commit()
 
     def set_owner(self) -> None:
@@ -80,6 +92,13 @@ class SignalerUser(_DECL_BASE):
         self.user_name = name
         SignalerUser.query.session.commit()
 
+    def just_demanded(self) -> None:
+        """
+        Set has_demanded to True
+        """
+        self.has_demanded = True
+        SignalerUser.query.session.commit()
+
     @staticmethod
     def reply_menu_markup(user_id: int) -> ReplyKeyboardMarkup:
         if SignalerUser.allow_owners_only(user_id):
@@ -93,14 +112,15 @@ class SignalerUser(_DECL_BASE):
             text = text + OWNER_MESSAGE.format(emoji.CROWN, emoji.CROWN)
         else:
             owner = SignalerUser.get_owners()[0]
-            owner_markup = MENTION.format(owner.username, owner.id)
+            owner_markup = MENTION.format(owner.user_name, owner.id)
             text = text + GUEST_MESSAGE.format(emoji.CHAINS, owner_markup, emoji.CHAINS)
         return text
 
     @staticmethod
     def add_new_user(user_id: int, user_name: str) -> 'SignalerUser':
         SignalerUser.query.session.add(SignalerUser(user_id=user_id, user_name=user_name,
-                                                    is_owner=False, is_allowed=False))
+                                                    is_owner=False, is_allowed=False,
+                                                    has_demanded=False))
         SignalerUser.query.session.commit()
         return SignalerUser.get_user(user_id)
 
@@ -148,6 +168,13 @@ class SignalerUser(_DECL_BASE):
         return SignalerUser.get_user(user_id).is_allowed
 
     @staticmethod
+    def user_has_demanded(user_id: int) -> bool:
+        """
+        Check if a user has already demanded
+        """
+        return SignalerUser.get_user(user_id).has_demanded
+
+    @staticmethod
     def allow_owners_only(user_id: int, command=None) -> bool:
         if SignalerUser.get_user(user_id).is_owner:
             return True
@@ -163,6 +190,10 @@ class SignalerUser(_DECL_BASE):
             return OWNER_MESSAGE
         else:
             return GUEST_MESSAGE
+
+    @staticmethod
+    def get_main_owner() -> 'SignalerUser':
+        return SignalerUser.query.filter(SignalerUser.is_owner.is_(True), SignalerUser.join_date.asc()).one()
 
 
 def init_db(config: Dict[str, Any], client: Client) -> None:

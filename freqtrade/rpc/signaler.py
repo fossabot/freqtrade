@@ -112,8 +112,8 @@ class Signaler:
                 logger.warning('Didn''t find the freqtrade bot owner in the signaler user DB.'
                                'Adding him with owner rights')
                 bot_owner = SignalerUser.add_new_user(owner_id, self.get_username(owner))
+                bot_owner.just_demanded()
                 SignalerUser.set_owner(bot_owner)
-                SignalerUser.query.session.commit()
         for owner in SignalerUser.get_owners():
             logger.info(f'rpc.signaler sent startup message to {owner.user_name}')
             try:
@@ -136,18 +136,20 @@ class Signaler:
             client.stop(block=False)
             signal.raise_signal(signal.SIGINT)
 
-    @staticmethod
-    async def start_handler(client: Client, message: Message):
+    async def start_handler(self, client: Client, message: Message):
         """
         Handle /start sent to the bot (sends greetings and allow asking for permission by users)
         """
         logger.info("rpc.signaler sent a welcome message!")
-        user = message.chat.username
-        user_id = message.chat.id
-        user_markup = MENTION.format(user, user_id)
+        user = await client.get_users(message.chat.id)
+        if not SignalerUser.get_user(user.id):
+            logger.info(f'rpc.signaler added a new user to the database! {user.id} {user.first_name}')
+            SignalerUser.add_new_user(user.id, self.get_username(user))
+        user_markup = MENTION.format(user.first_name, user.id)
         text = STARTED_MESSAGE.format(emoji.PARTY_POPPER, emoji.PARTY_POPPER, user_markup, SIGNALER_VERSION)
         text = await SignalerUser.user_ownership_message(message, text)
-        await message.reply_text(text, disable_web_page_preview=True, reply_markup=SignalerUser.reply_menu_markup(user_id))
+        await message.reply_text(text, disable_web_page_preview=True,
+                                 reply_markup=SignalerUser.reply_menu_markup(user.id))
 
     @staticmethod
     def get_username(user: User) -> str:

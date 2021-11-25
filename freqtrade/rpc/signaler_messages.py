@@ -2,7 +2,7 @@
 Contains the signaler messages
 """
 import logging
-from pyrogram.types import ReplyKeyboardMarkup, Message
+from pyrogram.types import ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +14,13 @@ STARTED_MESSAGE = "{} Welcome to [Freqtrade's Signaler](https://freqtrade.io/en/
 
 OWNER_MESSAGE = "  {} You are this bot's owner! {}"
 GUEST_MESSAGE = "  {} You are using {}'s bot {} \n " \
-                "(some commands are limited)"
+                "\n Use the demand button to ask the owners for access! "
+
+APPROVAL_MESSAGE = " {} {} is demanding access to the bot {} \n "
 
 OWNER_MENU_MARKUP = ReplyKeyboardMarkup(
     [
-        ["/test"],
+        ["/run"],
         ["/restart", "/stop"]
     ],
     resize_keyboard=True
@@ -26,7 +28,7 @@ OWNER_MENU_MARKUP = ReplyKeyboardMarkup(
 
 USER_MENU_MARKUP = ReplyKeyboardMarkup(
     [
-        ["/test"]
+        ["/demand", "/run"]
     ],
     resize_keyboard=True
 )
