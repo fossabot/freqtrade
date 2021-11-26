@@ -41,9 +41,9 @@ class SignalerUser(_DECL_BASE):
     # last signal received
 
     # there is 3 'states' of approval for a user.
-    # 1. Not allowed and Not denied (can ask to be allowed, first interaction)
-    # 2. Allowed (therefore not denied)
-    # 3. Denied (therefore not approved, can no longer ask to be allowed)
+    # 1. is_allowed and has_demand is false (can ask to be allowed, first interaction)
+    # 2. is_allowed is True (therefore has_demand aswell)
+    # 3. is_allowed is False and has_demand is True (has asked to be allowed and got denied)
     is_allowed = Column(Boolean, nullable=False, index=True)
     has_demanded = Column(Boolean, nullable=False, index=True, default=False)
     join_date = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -137,6 +137,13 @@ class SignalerUser(_DECL_BASE):
         Retrieve all approved users
         """
         return SignalerUser.query.filter(SignalerUser.is_allowed.is_(True)).all()
+
+    @staticmethod
+    def get_users() -> List['SignalerUser']:
+        """
+        Retrieve all users
+        """
+        return SignalerUser.query.all()
 
     @staticmethod
     def get_user(user_id: int) -> 'SignalerUser':
