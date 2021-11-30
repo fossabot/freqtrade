@@ -4,17 +4,18 @@ This signaler submodule contains the classes to persist information into SQLite
 import logging
 from datetime import datetime
 from typing import Any, List, Dict
+from typing import Union
 
 from sqlalchemy import (Boolean, Column, DateTime, Integer, String,
                         create_engine)
 from sqlalchemy.exc import NoSuchModuleError, NoResultFound
-from sqlalchemy.orm import  declarative_base, scoped_session, sessionmaker
+from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from freqtrade.exceptions import OperationalException
 from freqtrade.rpc.signaler_messages import OWNER_MESSAGE, GUEST_MESSAGE,\
     USER_MENU_MARKUP, OWNER_MENU_MARKUP, MENTION
-from pyrogram import Client, emoji
+from pyrogram import emoji
 from pyrogram.types import ReplyKeyboardMarkup, Message
 
 
@@ -23,6 +24,14 @@ logger = logging.getLogger(__name__)
 
 _DECL_BASE: Any = declarative_base()
 _SQL_DOCS_URL = 'http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls'
+
+SPAMMER_LEVEL_COOLDOWNS = {
+    0: 5,   # spammer level 0 (5 seconds)
+    1: 15,  # spammer level 1 (15 seconds)
+    2: 45,  # spammer level 2 (45 seconds)
+    3: 90  # spammer level 3 (90 seconds)
+    # spammer level 4 results in denying the user
+}
 
 
 class SignalerUser(_DECL_BASE):
@@ -47,6 +56,17 @@ class SignalerUser(_DECL_BASE):
     is_allowed = Column(Boolean, nullable=False, index=True)
     has_demanded = Column(Boolean, nullable=False, index=True, default=False)
     join_date = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    #  this value stores the dateTime of the last command sent. (used to prevent spamming)
+    last_command_received = Column(DateTime, nullable=True)
+    #  by default, everyone is spammer level 0.
+    #  Should someone spam the bot with a command the level will increase
+    #  level 0 : 5sec cooldowns
+    #  level 1 : 15sec cooldowns
+    #  level 2 : 45sec cooldowns
+    #  level 3 : 1min30sec cooldowns
+    #  level 4 : commands are discarded, user is denied and owners are warned once
+    spammer_level = Column(Integer, nullable=False, default=0)
 
     def delete(self) -> None:
         """
@@ -82,7 +102,8 @@ class SignalerUser(_DECL_BASE):
         Disallow this user
         """
         self.is_owner = False
-        self.is_allowed = False
+        self.is_allowed = False  # assuming we should remove this aswell from disallowed users.
+        self.has_demanded = False  # allow disowned users to ask for permission back (and be denied)
         SignalerUser.query.session.commit()
 
     def set_name(self, name: str) -> None:
@@ -97,6 +118,27 @@ class SignalerUser(_DECL_BASE):
         Set has_demanded to True
         """
         self.has_demanded = True
+        SignalerUser.query.session.commit()
+
+    def set_last_command_received(self) -> None:
+        """
+        Set the set_last_command_received value to the current time
+        """
+        self.last_command_received = datetime.utcnow()
+        SignalerUser.query.session.commit()
+
+    def increase_spammer_level(self) -> None:
+        """
+        Increase the spammer level of a user
+        """
+        self.spammer_level += 1
+        SignalerUser.query.session.commit()
+
+    def reset_spammer_level(self) -> None:
+        """
+        Reset the spammer level of a user
+        """
+        self.spammer_level = 0
         SignalerUser.query.session.commit()
 
     @staticmethod
@@ -146,15 +188,18 @@ class SignalerUser(_DECL_BASE):
         return SignalerUser.query.all()
 
     @staticmethod
-    def get_user(user_id: int) -> 'SignalerUser':
+    def get_user(user_to_get: Union[int, str]) -> 'SignalerUser':
         """
         Retrieve a specific user
-        :param user_id: user_id of target
+        :param user_to_get: user info of target (can be username in DB or userID of telegram)
         """
         try:
-            return SignalerUser.query.filter(SignalerUser.user_id.is_(user_id)).one()
+            if isinstance(user_to_get, int):
+                return SignalerUser.query.filter(SignalerUser.user_id.is_(user_to_get)).one()
+            else:
+                return SignalerUser.query.filter(SignalerUser.user_name.is_(user_to_get)).one()
         except NoResultFound:
-            logger.warning(f'Was asked about user_id ({user_id}) '
+            logger.warning(f'Was asked about user_id ({user_to_get}) '
                            'and he was not found.')
 
     @staticmethod
@@ -188,7 +233,7 @@ class SignalerUser(_DECL_BASE):
         else:
             if command is not None:
                 logger.info("Signaler received unauthorized "
-                            f"command {command} from {user_id}", command, user_id)
+                            f"command {command} from {user_id}")
             return False
 
     @staticmethod
@@ -203,7 +248,7 @@ class SignalerUser(_DECL_BASE):
         return SignalerUser.query.filter(SignalerUser.is_owner.is_(True), SignalerUser.join_date.asc()).one()
 
 
-def init_db(config: Dict[str, Any], client: Client) -> None:
+def init_db(config: Dict[str, Any]) -> None:
     """
     Initializes the signaler module database
     :param config: Freqtrade configuration

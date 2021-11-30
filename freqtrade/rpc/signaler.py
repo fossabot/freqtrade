@@ -3,8 +3,6 @@ Run a pyrogram bot that can call freqtrade sub-commands (and send buy/sell signa
 """
 import logging
 import signal
-from pathlib import Path
-import os
 from typing import Dict, Any
 
 from pyrogram import Client, __version__, emoji, filters, idle
@@ -15,17 +13,16 @@ from freqtrade.rpc import RPC
 from freqtrade.rpc.signaler_database import init_db
 from freqtrade.exceptions import OperationalException
 from freqtrade.freqtradebot import FreqtradeBot
-from freqtrade.rpc.signaler_messages import OWNER_MENU_MARKUP,\
-    SIGNALER_VERSION, STARTED_MESSAGE, MENTION
+from freqtrade.rpc.signaler_messages import OWNER_MENU_MARKUP, \
+    SIGNALER_VERSION, STARTED_MESSAGE, MENTION, OWNER_STARTUP_MESSAGE
 from freqtrade.rpc.signaler_database import SignalerUser
-
 
 logger = logging.getLogger(__name__)
 
 logger.debug('Included module rpc.signaler ...')
 
 
-class Signaler:
+class Signaler(Client):
     """ This class handles all signaler communication """
 
     def __init__(self, rpc: RPC, config: Dict[str, Any], freqtradebot: FreqtradeBot) -> None:
@@ -44,7 +41,7 @@ class Signaler:
             raise OperationalException("Missing telegram api_hash configuration.")
         elif not self._config['telegram']['token']:
             raise OperationalException("Missing telegram token configuration.")
-        self._client = Client(
+        super().__init__(
             api_id=self._config['telegram']['api_id'],
             api_hash=self._config['telegram']['api_hash'],
             bot_token=self._config['telegram']['token'],
@@ -54,7 +51,7 @@ class Signaler:
             session_name="Freqsignaler_bot",
             plugins=dict(root="freqtrade.rpc.signaler_plugins")
         )
-        init_db(self._config, self._client)
+        init_db(self._config)
 
     def start_signaler(self) -> None:
         logger.info(
@@ -63,10 +60,10 @@ class Signaler:
         )
         self.init_handlers()
         try:
-            self._client.start()
+            super().start()
             self.send_started_message()
             idle()
-            self._client.stop()
+            super().stop()
         except ConnectionError as e:
             logger.warning(str(e) + ". This is often due to the signaler "
                                     "being shut down via the stop command.")
@@ -76,15 +73,15 @@ class Signaler:
             raise OperationalException("Pyrogram had an error : " + str(e))
 
     def init_handlers(self):
-        # Generate the handlers
+        # Generate the signaler handlers
         welcome_user_handler = MessageHandler(self.start_handler, filters.command(["start"]))
         restart_handler = MessageHandler(self.restart_handler, filters.command(["restart"]))
         stop_handler = MessageHandler(self.stop_handler, filters.command(["stop"]))
 
         # Add the handlers to the client
-        self._client.add_handler(welcome_user_handler)
-        self._client.add_handler(restart_handler)
-        self._client.add_handler(stop_handler)
+        super().add_handler(welcome_user_handler)
+        super().add_handler(restart_handler)
+        super().add_handler(stop_handler)
 
     def restart_handler(self, client: Client, message: Message):
         """
@@ -106,7 +103,7 @@ class Signaler:
         # Make sure the freqtrade bot owner is considered a owner by the signaler module
         if not SignalerUser.get_owners():
             logger.info("rpc.signaler is missing owners!.")
-            owner = self._client.get_users(self._config['telegram']['chat_id'])
+            owner = super().get_users(self._config['telegram']['chat_id'])
             owner_id = owner.id
             if not SignalerUser.get_user(owner_id) and owner_id:
                 logger.warning('Didn''t find the freqtrade bot owner in the signaler user DB.'
@@ -117,11 +114,16 @@ class Signaler:
         for owner in SignalerUser.get_owners():
             logger.info(f'rpc.signaler sent startup message to {owner.user_name}')
             try:
-                self._client.send_message(owner.user_id,
-                                          "Signaler is started homie.",
-                                          reply_markup=OWNER_MENU_MARKUP)
+                super().send_message(owner.user_id,
+                                     OWNER_STARTUP_MESSAGE.format(
+                                         emoji.CHECK_BOX_WITH_CHECK,
+                                         len(SignalerUser.get_owners()),
+                                         len(SignalerUser.get_users()),
+                                         self._config.get('strategy', "None started")
+                                     ),
+                                     reply_markup=OWNER_MENU_MARKUP)
             except PeerIdInvalid:
-                me = self._client.get_me()
+                me = super().get_me()
                 logger.info(f'rpc.signaler tried to send startup message to {owner.user_name}'
                             f'but was unsucessful. Make sure you interacted with {me.username} first!')
 
@@ -156,9 +158,3 @@ class Signaler:
         if user.username is None:
             return user.first_name
         return user.username
-
-
-
-
-
-

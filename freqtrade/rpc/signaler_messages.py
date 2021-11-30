@@ -6,13 +6,20 @@ from pyrogram.types import ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyb
 
 logger = logging.getLogger(__name__)
 
-SIGNALER_VERSION = "0.0.2"
+SIGNALER_VERSION = "0.0.3"
 MENTION = "**[{}](tg://user?id={})**"  # User mention markup
 STARTED_MESSAGE = "{} Welcome to [Freqtrade's Signaler](https://freqtrade.io/en/stable) {}! \n" \
                   " Successfully connected with {}. \n" \
                   " You are using Signaler module v.{} \n"
 
-OWNER_MESSAGE = "  {} You are this bot's owner! {}"
+OWNER_STARTUP_MESSAGE = f" Hello!\n" \
+                        f" [Freqtrade's Signaler](https://freqtrade.io/en/stable) v{SIGNALER_VERSION}\n" \
+                        " successfully started!{}\n" \
+                        " You are part of the **{}** owners!\n" \
+                        " There is currently **{}** users in the DB\n" \
+                        " Current Freqtrade strategy: **{}**\n"
+
+OWNER_MESSAGE = "  {} You are one of this bot's owners! {}"
 GUEST_MESSAGE = "  {} You are using {}'s bot {} \n " \
                 "\n Use the demand button to ask the owners for access! "
 
@@ -27,7 +34,7 @@ WHOIS_MESSAGE = "**[{}](tg://user?id={})**\n"\
     " * Join date: `{}`\n"\
     " * Approved: `{}`\n"\
     " * Owner: `{}`\n"\
-    " * Scammer: `{}`\n"
+    " * Spammer Level: `{}`\n"
 
 OWNER_MENU_MARKUP = ReplyKeyboardMarkup(
     [
