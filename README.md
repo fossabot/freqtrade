@@ -4,6 +4,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/freqtrade/freqtrade/badge.svg?branch=develop&service=github)](https://coveralls.io/github/freqtrade/freqtrade?branch=develop)
 [![Documentation](https://readthedocs.org/projects/freqtrade/badge/)](https://www.freqtrade.io)
 [![Maintainability](https://api.codeclimate.com/v1/badges/5737e6d668200b7518ff/maintainability)](https://codeclimate.com/github/freqtrade/freqtrade/maintainability)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fc4th4r5y5%2Ffreqtrade.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fc4th4r5y5%2Ffreqtrade?ref=badge_shield)
 
 Freqtrade is a free and open source crypto trading bot written in Python. It is designed to support all major exchanges and be controlled via Telegram. It contains backtesting, plotting and money management tools as well as strategy optimization by machine learning.
 
@@ -203,3 +204,7 @@ To run this bot we recommend you a cloud instance with a minimum of:
 - [TA-Lib](https://mrjbq7.github.io/ta-lib/install.html)
 - [virtualenv](https://virtualenv.pypa.io/en/stable/installation.html) (Recommended)
 - [Docker](https://www.docker.com/products/docker) (Recommended)
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fc4th4r5y5%2Ffreqtrade.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fc4th4r5y5%2Ffreqtrade?ref=badge_large)
